@@ -27,15 +27,24 @@ RUN add-apt-repository -y ppa:nginx/stable
 
 # Update system
 RUN apt-get update 
-RUN apt-get install -y --force-yes php5-cli php5-fpm php5-mysql php5-sqlite php5-curl\
-		       php5-gd php5-mcrypt php5-intl
+
+# Install PHP and Extensions
+RUN apt-get install -y --force-yes \
+	php5-cli \
+	php5-json \
+	php5-intl \
+	php5-fpm \
+	php5-curl\
+	php5-mcrypt
 
 # Set timezone up for PHP
 RUN sed -i "s/;date.timezone =.*/date.timezone = UTC/" /etc/php5/fpm/php.ini
 RUN sed -i "s/;date.timezone =.*/date.timezone = UTC/" /etc/php5/cli/php.ini
 
+# Install Nginx
 RUN apt-get install -y nginx
 
+# Configure Nginx and PHP-FPM
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 RUN sed -i -e "s/;daemonize\s*=\s*yes/daemonize = no/g" /etc/php5/fpm/php-fpm.conf
 RUN sed -i "s/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/" /etc/php5/fpm/php.ini
@@ -46,7 +55,10 @@ RUN usermod -u 1000 www-data
 RUN usermod -a -G users www-data
 RUN chown -R www-data:www-data /var/www
 
+# Configure Nginx Vhost
 ADD config/nginx/default   /etc/nginx/sites-available/default
+
+# Configure runit
 RUN mkdir                  /etc/service/nginx
 ADD config/init/nginx.sh   /etc/service/nginx/run
 RUN chmod +x               /etc/service/nginx/run
