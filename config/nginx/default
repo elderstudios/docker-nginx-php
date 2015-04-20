@@ -3,7 +3,6 @@ server {
     listen [::]:80 default_server ipv6only=on;
 
     root /var/www/web;
-    index index.html index.htm index.php;
 
     # Make site accessible from http://set-ip-address.xip.io
     server_name localhost;
@@ -12,9 +11,17 @@ server {
     error_log  /var/log/nginx/localhost.com-error.log error;
 
     charset utf-8;
-    
+
+    #strip app.php/ prefix if it is present
+    rewrite ^/app\.php/?(.*)$ /$1 permanent;
+
     location / {
-        try_files $uri /app.php$is_args$args;
+        index app.php;
+        try_files $uri @rewriteapp;
+    }
+
+    location @rewriteapp {
+        rewrite ^(.*)$ /app.php/$1 last;
     }
 
     location = /favicon.ico { log_not_found off; access_log off; }
@@ -27,12 +34,14 @@ server {
         root /usr/share/nginx/www;
     }
 
-    location ~ ^/(app|app_dev|config)\.php(/|$) {
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/var/run/php5-fpm.sock;
+    # pass the PHP scripts to FastCGI server listening socket
+    location ~ ^/(app|app_dev)\.php(/|$) {
+        fastcgi_pass unix://var/run/php5-fpm.sock;
+        fastcgi_keep_conn on;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
         include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_param HTTPS off;
+        fastcgi_param  SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+        fastcgi_param  HTTPS              off;
     }
 
     # Deny .htaccess file access
